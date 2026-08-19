@@ -5,7 +5,7 @@
 
 const { getStore } = require("@netlify/blobs");
 
-const BASE_URL = "http://apis.data.go.kr/1230000/ad/BidPublicInfoService";
+const BASE_URL = "https://apis.data.go.kr/1230000/ad/BidPublicInfoService";
 const OPERATIONS = {
   servc: ["용역", "getBidPblancListInfoServcPPSSrch"],
   thng: ["물품", "getBidPblancListInfoThngPPSSrch"],
@@ -13,7 +13,7 @@ const OPERATIONS = {
   frgcpt: ["외자", "getBidPblancListInfoFrgcptPPSSrch"],
 };
 
-const SCSBID_BASE_URL = "http://apis.data.go.kr/1230000/as/ScsbidInfoService";
+const SCSBID_BASE_URL = "https://apis.data.go.kr/1230000/as/ScsbidInfoService";
 const SCSBID_OPERATIONS = {
   servc: ["용역", "getScsbidListSttusServcPPSSrch"],
   thng: ["물품", "getScsbidListSttusThngPPSSrch"],
