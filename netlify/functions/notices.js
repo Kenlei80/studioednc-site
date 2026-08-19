@@ -1,7 +1,7 @@
 // 공지/블로그 기능 — Netlify Function
 // 글 목록은 Netlify Blobs에 저장한다. 작성/삭제는 관리자 비밀번호(ADMIN_PASSWORD 환경변수)로 보호한다.
 
-const { getStore } = require("@netlify/blobs");
+const { getStore, connectLambda } = require("@netlify/blobs");
 
 function json(body, statusCode = 200) {
   return {
@@ -12,15 +12,15 @@ function json(body, statusCode = 200) {
 }
 
 exports.handler = async (event) => {
+  // event로부터 Netlify Blobs 연결 정보를 자동으로 읽어온다.
+  // 이렇게 하면 NETLIFY_SITE_ID / NETLIFY_AUTH_TOKEN을 수동으로 등록할 필요가 없다.
+  connectLambda(event);
+
   const action = event.queryStringParameters && event.queryStringParameters.action;
   const adminPassword = (process.env.ADMIN_PASSWORD || "").trim();
 
-  const manualBlobsOpts =
-    process.env.NETLIFY_SITE_ID && process.env.NETLIFY_AUTH_TOKEN
-      ? { siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_AUTH_TOKEN }
-      : null;
   function getNoticesStore() {
-    return manualBlobsOpts ? getStore({ name: "notices", ...manualBlobsOpts }) : getStore("notices");
+    return getStore("notices");
   }
 
   async function loadNotices() {
