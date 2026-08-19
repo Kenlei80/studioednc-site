@@ -58,13 +58,24 @@ async function callG2bApi(baseUrl, opPath, serviceKey, params) {
   const maskedUrl = url.replace(/serviceKey=[^&]+/, "serviceKey=***");
   let res, raw;
   try {
-    res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+      },
+    });
     raw = await res.text();
   } catch (e) {
-    return { error: String(e), url: maskedUrl };
+    return { error: `네트워크 오류: ${e}`, url: maskedUrl };
   }
   if (!res.ok) {
-    return { error: `HTTP ${res.status}`, raw: raw.slice(0, 500), url: maskedUrl };
+    const ct = res.headers.get("content-type") || "(없음)";
+    return {
+      error: `HTTP ${res.status} ${res.statusText || ""}`.trim(),
+      raw: raw ? raw.slice(0, 500) : `(응답 본문 없음, content-type: ${ct})`,
+      url: maskedUrl,
+    };
   }
   let data;
   try {
