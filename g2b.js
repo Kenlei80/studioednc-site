@@ -328,8 +328,18 @@ exports.handler = async (event) => {
   // Blobs 스토어는 실제로 필요할 때만(설정/상태 관련 액션에서만) 만든다.
   // getStore()가 배포 환경에 따라 예외를 던질 수 있어서, try 블록 밖에서 즉시 호출하면
   // 검색(search/scsbid) 액션까지 전부 죽어버리는 문제가 있었음 — 그래서 지연 생성으로 변경.
-  function getConfigStore() { return getStore("g2b-config"); }
-  function getStateStore() { return getStore("g2b-state"); }
+  // Netlify Blobs 자동 연결(암묵적 context)이 배포 환경에 따라 안 될 때가 있어서,
+  // NETLIFY_SITE_ID / NETLIFY_AUTH_TOKEN 환경변수가 있으면 수동 연결로 대체한다.
+  const manualBlobsOpts =
+    process.env.NETLIFY_SITE_ID && process.env.NETLIFY_AUTH_TOKEN
+      ? { siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_AUTH_TOKEN }
+      : null;
+  function getConfigStore() {
+    return manualBlobsOpts ? getStore({ name: "g2b-config", ...manualBlobsOpts }) : getStore("g2b-config");
+  }
+  function getStateStore() {
+    return manualBlobsOpts ? getStore({ name: "g2b-state", ...manualBlobsOpts }) : getStore("g2b-state");
+  }
 
   async function loadConfig() {
     const cfg = (await getConfigStore().get("config", { type: "json" })) || {};

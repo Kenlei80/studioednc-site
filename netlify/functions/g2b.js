@@ -323,16 +323,30 @@ function itemKey(no, ord) {
 
 exports.handler = async (event) => {
   const action = event.queryStringParameters && event.queryStringParameters.action;
-  const configStore = getStore("g2b-config");
-  const stateStore = getStore("g2b-state");
   const serviceKey = (process.env.G2B_SERVICE_KEY || "").trim();
 
+  // Blobs 스토어는 실제로 필요할 때만(설정/상태 관련 액션에서만) 만든다.
+  // getStore()가 배포 환경에 따라 예외를 던질 수 있어서, try 블록 밖에서 즉시 호출하면
+  // 검색(search/scsbid) 액션까지 전부 죽어버리는 문제가 있었음 — 그래서 지연 생성으로 변경.
+  // Netlify Blobs 자동 연결(암묵적 context)이 배포 환경에 따라 안 될 때가 있어서,
+  // NETLIFY_SITE_ID / NETLIFY_AUTH_TOKEN 환경변수가 있으면 수동 연결로 대체한다.
+  const manualBlobsOpts =
+    process.env.NETLIFY_SITE_ID && process.env.NETLIFY_AUTH_TOKEN
+      ? { siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_AUTH_TOKEN }
+      : null;
+  function getConfigStore() {
+    return manualBlobsOpts ? getStore({ name: "g2b-config", ...manualBlobsOpts }) : getStore("g2b-config");
+  }
+  function getStateStore() {
+    return manualBlobsOpts ? getStore({ name: "g2b-state", ...manualBlobsOpts }) : getStore("g2b-state");
+  }
+
   async function loadConfig() {
-    const cfg = (await configStore.get("config", { type: "json" })) || {};
+    const cfg = (await getConfigStore().get("config", { type: "json" })) || {};
     return { ...DEFAULT_CONFIG, ...cfg };
   }
   async function loadState() {
-    const st = (await stateStore.get("state", { type: "json" })) || {};
+    const st = (await getStateStore().get("state", { type: "json" })) || {};
     return { seen: st.seen || {}, kept: st.kept || {} };
   }
 
@@ -348,7 +362,7 @@ exports.handler = async (event) => {
       if (incoming.keywords && incoming.keywords.length) cfg.keywords = incoming.keywords;
       if (incoming.bid_types && incoming.bid_types.length) cfg.bid_types = incoming.bid_types;
       if (incoming.lookback_days) cfg.lookback_days = incoming.lookback_days;
-      await configStore.setJSON("config", cfg);
+      await getConfigStore().setJSON("config", cfg);
       return json({ ok: true });
     }
 
@@ -381,7 +395,7 @@ exports.handler = async (event) => {
       const key = itemKey(incoming.bidNtceNo, incoming.bidNtceOrd);
       if (incoming.seen) state.seen[key] = true;
       else delete state.seen[key];
-      await stateStore.setJSON("state", state);
+      await getStateStore().setJSON("state", state);
       return json({ ok: true });
     }
 
@@ -397,7 +411,7 @@ exports.handler = async (event) => {
       } else {
         delete state.kept[key];
       }
-      await stateStore.setJSON("state", state);
+      await getStateStore().setJSON("state", state);
       return json({ ok: true });
     }
 
