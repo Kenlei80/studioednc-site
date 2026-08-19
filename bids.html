@@ -188,13 +188,23 @@
   }));
 
   async function loadConfig() {
-    const r = await fetch(API + '?action=config');
-    const cfg = await r.json();
+    let cfg;
+    try {
+      const r = await fetch(API + '?action=config');
+      cfg = await r.json();
+    } catch (e) {
+      cfg = {};
+    }
+    if (!cfg || cfg.error || !Array.isArray(cfg.keywords)) {
+      document.getElementById('g2bErrBox').innerHTML =
+        '<div class="g2b-err">설정을 불러오지 못했습니다' + (cfg && cfg.error ? (': ' + cfg.error) : '') + '. 관리자에게 문의해주세요.</div>';
+      cfg = { keywords: [], bid_types: ['servc', 'thng'], lookback_days: 3, has_service_key: false };
+    }
     document.getElementById('g2bKw').value = cfg.keywords.join(', ');
     document.getElementById('g2bSkw').value = cfg.keywords.join(', ');
     document.getElementById('g2bDefaultKeywords').value = cfg.keywords.join(', ');
-    document.querySelectorAll('.g2b-btype').forEach(cb => cb.checked = cfg.bid_types.includes(cb.value));
-    document.querySelectorAll('.g2b-sbtype').forEach(cb => cb.checked = cfg.bid_types.includes(cb.value));
+    document.querySelectorAll('.g2b-btype').forEach(cb => cb.checked = (cfg.bid_types || []).includes(cb.value));
+    document.querySelectorAll('.g2b-sbtype').forEach(cb => cb.checked = (cfg.bid_types || []).includes(cb.value));
     document.getElementById('g2bDays').value = String(cfg.lookback_days || 3);
     if (!cfg.has_service_key) {
       document.getElementById('g2bErrBox').innerHTML = '<div class="g2b-err">관리자가 아직 서비스키(G2B_SERVICE_KEY)를 설정하지 않았습니다. Netlify 사이트 설정 &gt; Environment variables에서 등록해주세요.</div>';
@@ -337,6 +347,7 @@
       const byType = (scsbidData && scsbidData.stats && scsbidData.stats.by_type) || {};
       status.textContent = '';
       if (data.error) { errBox.innerHTML = '<div class="g2b-err">' + data.error + '</div>'; return; }
+      if (!Array.isArray(data.items)) { errBox.innerHTML = '<div class="g2b-err">서버 응답 형식이 올바르지 않습니다: ' + JSON.stringify(data).slice(0, 300) + '</div>'; return; }
       data.items.forEach(it => { it._hist = byType[it.type_key]; });
       lastSearchData = data;
       lastSearchMetaSuffix = (scsbidData && scsbidData.note) ? ` · (실제 낙찰 데이터 참고기간: 최근 ${scsbidData.used_days}일)` : '';
@@ -375,7 +386,7 @@
 
       const tbody = document.getElementById('g2bScsbidBody');
       tbody.innerHTML = '';
-      data.items.forEach(it => {
+      (data.items || []).forEach(it => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><span class="g2b-tag">${it.type}</span></td>
