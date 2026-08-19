@@ -47,3 +47,18 @@ Netlify Blobs라는 저장소에 사이트 단위로 저장됩니다. 팀원 누
 (둘은 서로 영향을 주지 않는 별개의 실행 방식입니다). 다만 "킵/확인" 데이터는
 로컬 버전과 웹 버전이 서로 공유되지 않습니다 — 로컬은 `saved.json` 파일에,
 웹 버전은 Netlify Blobs에 따로 저장돼요.
+
+## 6. 공지(블로그) 글쓰기 기능 — 관리자 비밀번호 설정
+
+`admin.html`에서 새 공지를 작성/삭제할 수 있습니다. 아무나 못 쓰게 비밀번호로 잠가뒀어요.
+
+1. Netlify → Site configuration → Environment variables → Add a variable
+2. Key: `ADMIN_PASSWORD`
+3. Value: 원하는 비밀번호 (예: 팀 내부에서만 아는 문구)
+4. 저장 후 Deploys → Trigger deploy → Deploy site 로 재배포
+
+- **글쓰기**: `studioednc.com/admin.html` 접속 → 비밀번호 입력 → 제목/본문/링크 작성 → 게시
+- **전체 목록 보기(공개)**: `studioednc.com/notices.html`
+- 메인 페이지 상단 공지 배너에는 항상 **가장 최근 글 1개**가 자동으로 표시됩니다.
+- `admin.html`은 검색엔진에 노출되지 않도록(noindex) 처리했지만, URL을 아는 사람은 접속은 가능합니다 — 비밀번호가 실제 보안입니다.
+
