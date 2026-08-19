@@ -32,6 +32,7 @@
   .nt-link{display:inline-block;margin-top:10px;font-size:13px;color:var(--gold);text-decoration:none;font-family:JetBrains Mono,monospace}
   .nt-link:hover{text-decoration:underline}
   .nt-empty{color:#8f8ca3;font-size:14px;padding:40px 0;text-align:center}
+  .nt-img{max-width:100%;border-radius:8px;margin:10px 0;display:block}
 </style>
 <div class=nt-wrap id=ntList><div class=nt-empty>불러오는 중...</div></div>
 </section>
@@ -59,7 +60,8 @@
       const titleHtml = it.url ? `<a href="${esc(it.url)}" target="_blank">${esc(it.title)}</a>` : esc(it.title);
       const linkHtml = it.url ? `<a class="nt-link" href="${esc(it.url)}" target="_blank">바로가기 →</a>` : '';
       const bodyHtml = it.body ? `<div class="nt-body">${esc(it.body)}</div>` : '';
-      return `<div class="nt-item"><div class="nt-date mono">${fmtDate(it.created_at)}</div><div class="nt-title">${titleHtml}</div>${bodyHtml}${linkHtml}</div>`;
+      const imgHtml = it.hasImage ? `<img class="nt-img" src="/.netlify/functions/notices?action=image&id=${it.id}" alt="${esc(it.title)}">` : '';
+      return `<div class="nt-item"><div class="nt-date mono">${fmtDate(it.created_at)}</div><div class="nt-title">${titleHtml}</div>${imgHtml}${bodyHtml}${linkHtml}</div>`;
     }).join('');
   } catch (e) {
     wrap.innerHTML = '<div class="nt-empty">공지를 불러오지 못했습니다.</div>';

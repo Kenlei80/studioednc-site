@@ -52,6 +52,9 @@
       <input type=text id=adTitle placeholder="공지 제목">
       <label>본문 (선택)</label>
       <textarea id=adBody rows=4 placeholder="짧은 설명글"></textarea>
+      <label>사진 (선택)</label>
+      <input type=file id=adImage accept="image/*">
+      <div id=adImagePreviewWrap style="display:none;margin-top:10px;"><img id=adImagePreview style="max-width:100%;border-radius:8px;border:1px solid var(--gray-line);"></div>
       <label>링크 (선택)</label>
       <input type=text id=adUrl placeholder="https://...">
       <button class=ad-btn id=adPostBtn>게시</button>
@@ -67,8 +70,36 @@
 (function(){
   const API = '/.netlify/functions/notices';
   let PW = '';
+  let pendingImageB64 = null;
 
   function esc(s) { return (s || '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+  document.getElementById('adImage').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) { pendingImageB64 = null; document.getElementById('adImagePreviewWrap').style.display = 'none'; return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1400;
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0d0d10';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        pendingImageB64 = dataUrl;
+        const preview = document.getElementById('adImagePreview');
+        preview.src = dataUrl;
+        document.getElementById('adImagePreviewWrap').style.display = '';
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
   function fmtDate(iso) {
     const d = new Date(iso);
     if (isNaN(d)) return '';
@@ -84,9 +115,12 @@
     if (!items.length) { listEl.innerHTML = '<div style="color:#8f8ca3;font-size:13px;">등록된 공지가 없습니다.</div>'; return; }
     listEl.innerHTML = items.map(it => `
       <div class="ad-item">
-        <div>
-          <div class="ad-item-title">${esc(it.title)}</div>
-          <div class="ad-item-date">${fmtDate(it.created_at)}</div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          ${it.hasImage ? `<img src="${API}?action=image&id=${it.id}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0;">` : ''}
+          <div>
+            <div class="ad-item-title">${esc(it.title)}</div>
+            <div class="ad-item-date">${fmtDate(it.created_at)}</div>
+          </div>
         </div>
         <button class="ad-del" data-id="${it.id}">삭제</button>
       </div>
@@ -116,13 +150,16 @@
     if (!title) { msg.innerHTML = '<span class="err">제목을 입력하세요.</span>'; return; }
     msg.textContent = '게시 중...';
     try {
-      const r = await fetch(API + '?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, body, url, password: PW }) });
+      const r = await fetch(API + '?action=add', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, body, url, image: pendingImageB64, password: PW }) });
       const data = await r.json();
       if (!r.ok || data.error) { msg.innerHTML = '<span class="err">' + (data.error || '게시 실패') + '</span>'; return; }
       msg.innerHTML = '<span class="ok">게시되었습니다.</span>';
       document.getElementById('adTitle').value = '';
       document.getElementById('adBody').value = '';
       document.getElementById('adUrl').value = '';
+      document.getElementById('adImage').value = '';
+      document.getElementById('adImagePreviewWrap').style.display = 'none';
+      pendingImageB64 = null;
       loadList();
       setTimeout(() => msg.textContent = '', 2500);
     } catch (e) {

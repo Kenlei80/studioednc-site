@@ -22,6 +22,9 @@ exports.handler = async (event) => {
   function getNoticesStore() {
     return getStore("notices");
   }
+  function getImagesStore() {
+    return getStore("notice-images");
+  }
 
   async function loadNotices() {
     const data = await getNoticesStore().get("list", { type: "json" });
@@ -38,6 +41,19 @@ exports.handler = async (event) => {
       return json({ items: notices });
     }
 
+    if (event.httpMethod === "GET" && action === "image") {
+      const id = event.queryStringParameters && event.queryStringParameters.id;
+      if (!id) return json({ error: "id가 필요합니다." }, 400);
+      const b64 = await getImagesStore().get(id, { type: "text" });
+      if (!b64) return { statusCode: 404, body: "not found" };
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable" },
+        body: b64,
+        isBase64Encoded: true,
+      };
+    }
+
     if (event.httpMethod === "POST" && action === "add") {
       const incoming = JSON.parse(event.body || "{}");
       if (!adminPassword) return json({ error: "관리자 비밀번호(ADMIN_PASSWORD)가 서버에 설정되어 있지 않습니다." }, 500);
@@ -45,11 +61,21 @@ exports.handler = async (event) => {
       const title = (incoming.title || "").trim();
       if (!title) return json({ error: "제목을 입력해주세요." }, 400);
       const notices = await loadNotices();
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      // 이미지는 목록 데이터를 무겁게 만들지 않도록 별도 저장소에 id로 저장하고,
+      // 공지 항목에는 hasImage 플래그만 남긴다.
+      let hasImage = false;
+      if (incoming.image) {
+        const b64 = incoming.image.includes(",") ? incoming.image.split(",").pop() : incoming.image;
+        await getImagesStore().set(id, b64);
+        hasImage = true;
+      }
       const item = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        id,
         title,
         body: (incoming.body || "").trim(),
         url: (incoming.url || "").trim(),
+        hasImage,
         created_at: new Date().toISOString(),
       };
       notices.push(item);
@@ -63,8 +89,12 @@ exports.handler = async (event) => {
       if ((incoming.password || "") !== adminPassword) return json({ error: "비밀번호가 올바르지 않습니다." }, 401);
       if (!incoming.id) return json({ error: "id가 필요합니다." }, 400);
       let notices = await loadNotices();
+      const target = notices.find((n) => n.id === incoming.id);
       notices = notices.filter((n) => n.id !== incoming.id);
       await saveNotices(notices);
+      if (target && target.hasImage) {
+        try { await getImagesStore().delete(incoming.id); } catch (e) {}
+      }
       return json({ ok: true });
     }
 
