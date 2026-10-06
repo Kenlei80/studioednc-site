@@ -1,0 +1,28 @@
+name: Generate beginner color content
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install renderer and Korean fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+          python -m pip install -r content-automation/requirements.txt
+      - name: Build drafts
+        env:
+          CONTENT_FONT: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+        run: python content-automation/build.py --video
+      - uses: actions/upload-artifact@v4
+        with:
+          name: color-content-drafts
+          path: content-automation/output/
+          retention-days: 14
